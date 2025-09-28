@@ -22,7 +22,7 @@ protected:
   const int MAX_REDIRECT = 5;
 
 public:
-  static std::map<std::string, SocketClient> cache;
+  static std::map<std::string, SocketClient> pool;
 
 public:
   HTTPRequest(URL url) : BaseHTTPRequest(url) {};

@@ -67,10 +67,8 @@ HTTPResponse HTTPRequest::get(int redirect_times) {
   if (response.code == 301 || response.code == 302) {
     if (response.headers.find("location") != response.headers.end()) {
       string location = response.headers["location"];
-      std::cout << (location[0] == ' ') << "\n";
-      std::cout << location << "\n";
       if (location[0] == '/') {
-        _url.setPath("/");
+        _url.setPath(location);
       } else {
         URL new_url(location);
         _url = new_url;
