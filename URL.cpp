@@ -6,7 +6,7 @@ URL::URL(string url) {
   parse_url();
 }
 void URL::parse_url() {
-  int index = _url.find("://");
+  size_t index = _url.find("://");
   if (index == string::npos) {
     return;
   }

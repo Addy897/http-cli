@@ -3,7 +3,7 @@
 #include "utils.h"
 using std::string;
 string Parser::get_line(string &buff) {
-  int line_index = buff.find("\n");
+  size_t line_index = buff.find("\n");
 
   if (line_index != string::npos) {
     string line = buff.substr(0, line_index + 1);
@@ -16,7 +16,7 @@ HEADERS Parser::parse_headers(std::string raw_header) {
   HEADERS response_headers;
   string line = get_line(raw_header);
   while (line != "\r\n") {
-    int pos = line.find(":");
+    size_t pos = line.find(":");
     if (pos == string ::npos)
       break;
     string key = line.substr(0, pos);

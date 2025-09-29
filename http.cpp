@@ -1,7 +1,9 @@
 #include "http.h"
 #include "http_client.h"
+#include "logger.h"
 #include "parser.h"
 #include "socket_client.h"
+
 #include <errno.h>
 #include <iostream>
 #include <stdexcept>
@@ -25,7 +27,7 @@ string HTTPRequest::http_request(METHOD method) {
   for (auto &val : _headers) {
     request += val.first + ": " + val.second + "\r\n";
   }
-  request += "Connection: close\r\n";
+  request += "Connection: keep-alive\r\n";
   request += "\r\n\r\n";
   return request;
 }
@@ -33,8 +35,8 @@ string HTTPRequest::http_request(METHOD method) {
 std::shared_ptr<SocketClient> HTTPRequest::get_client() {
   std::shared_ptr<SocketClient> client;
   if (HTTPRequest::pool.find(_url.url()) != HTTPRequest::pool.end()) {
-    // Logger::loginfo("get_client()","")
-    std::cout << "Reuse\n";
+    LOGGER::log_info("get_client()", "Reused socket for url: %s",
+                     _url.url().c_str());
     client = HTTPRequest::pool[_url.url()];
   } else {
     if (_url.scheme() == "https") {
@@ -43,6 +45,7 @@ std::shared_ptr<SocketClient> HTTPRequest::get_client() {
       client = std::make_shared<HTTPClient>();
     }
     client->conn(_url.hostname(), _url.port());
+    pool[_url.url()] = client;
   }
   return client;
 }
@@ -67,8 +70,7 @@ HTTPResponse HTTPRequest::get(int redirect_times) {
 
   string result;
   string delimeter = "\r\n\r\n";
-  char c[CHUNK_SIZE];
-  int end_index = -1;
+  size_t end_index;
   while (true) {
     string chunk = client->read(CHUNK_SIZE);
     if (chunk.empty())
@@ -84,6 +86,8 @@ HTTPResponse HTTPRequest::get(int redirect_times) {
   lineparser >> response.version >> response.code;
   std::getline(lineparser, response.status);
   response.headers = Parser::parse_headers(raw_headers);
+
+  LOGGER::log_debug("get()", "response code: %d", response.code);
   if (response.code == 301 || response.code == 302) {
     if (response.headers.find("location") != response.headers.end()) {
       string location = response.headers["location"];
@@ -93,11 +97,11 @@ HTTPResponse HTTPRequest::get(int redirect_times) {
         URL new_url(location);
         _url = new_url;
       }
-      client->close();
       return get(redirect_times + 1);
     }
   }
 
+  LOGGER::log_debug("get()", "heeader end: %d", end_index);
   string raw_content =
       result.substr(end_index + delimeter.size(), result.size());
 
@@ -129,8 +133,7 @@ HTTPResponse HTTPRequest::post() {
 
   string result;
   string delimeter = "\r\n\r\n";
-  char c[CHUNK_SIZE];
-  int end_index = -1;
+  size_t end_index;
   while (true) {
     result.append(client->read(CHUNK_SIZE));
     end_index = result.find(delimeter);
@@ -173,8 +176,7 @@ HTTPResponse HTTPRequest::head() {
   }
   string result;
   string delimeter = "\r\n\r\n";
-  char c[CHUNK_SIZE];
-  int end_index = -1;
+  size_t end_index;
   while (true) {
     result.append(client->read(CHUNK_SIZE));
     end_index = result.find(delimeter);

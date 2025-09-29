@@ -56,10 +56,10 @@ std::string HTTPClient::read(size_t size) {
     recv_buf.append(recv_data, recv_size);
   } else {
 
-    int total_size = 0;
+    size_t total_size = 0;
     // read all 'size' bytes
     while (total_size < size) {
-      int temp_size =
+      size_t temp_size =
           size - total_size > CHUNK_SIZE ? CHUNK_SIZE : size - total_size;
       int bytes = recv(client, recv_data, temp_size, 0);
       if (bytes > 0) {
@@ -115,10 +115,10 @@ std::string HTTPSClient::read(size_t size) {
     recv_buf.append(recv_data, recv_size);
   } else {
 
-    int total_size = 0;
+    size_t total_size = 0;
     // read all 'size' bytes
     while (total_size < size) {
-      int temp_size =
+      size_t temp_size =
           size - total_size > CHUNK_SIZE ? CHUNK_SIZE : size - total_size;
       int bytes = SSL_read(ssl_client, recv_data, temp_size);
       if (bytes > 0) {
