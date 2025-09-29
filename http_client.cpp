@@ -1,7 +1,9 @@
 #include "http_client.h"
 #include "socket_client.h"
 #include <openssl/ssl.h>
+#include <psdk_inc/_socket_types.h>
 #include <stdexcept>
+#include <winsock2.h>
 
 // HTTP CLIENT
 
@@ -33,7 +35,7 @@ void HTTPClient::conn(std::string hostname, int port) {
     snprintf(error, 100, "invalid hostname: %s", hostname.c_str());
     throw std::runtime_error(error);
   }
-  
+
   // establish connection
   if (connect(client, (SOCKADDR *)&client_addr, sizeof(client_addr))) {
 
@@ -49,32 +51,36 @@ std::string HTTPClient::read(size_t size) {
   char recv_data[CHUNK_SIZE];
   std::string recv_buf;
 
-  if(size <= CHUNK_SIZE){
+  if (size <= CHUNK_SIZE) {
     int recv_size = recv(client, recv_data, size, 0);
-    recv_buf.append(recv_data,recv_size);
-  }else{
+    recv_buf.append(recv_data, recv_size);
+  } else {
 
     int total_size = 0;
     // read all 'size' bytes
-    while (total_size<size) {
-      int temp_size = size-total_size > CHUNK_SIZE
-                     ? CHUNK_SIZE
-                     : size-total_size ;
-      int bytes = recv(client,recv_data,temp_size,0);
-      if (bytes > 0){
-        total_size+=bytes;
+    while (total_size < size) {
+      int temp_size =
+          size - total_size > CHUNK_SIZE ? CHUNK_SIZE : size - total_size;
+      int bytes = recv(client, recv_data, temp_size, 0);
+      if (bytes > 0) {
+        total_size += bytes;
         recv_buf.append(recv_data, bytes);
-      }else break;
+      } else
+        break;
     }
   }
-  return recv_buf;     
+  return recv_buf;
 }
 
-void HTTPClient::close(){ 
-  closesocket(client);
+void HTTPClient::close() {
+  if (client != INVALID_SOCKET) {
+    closesocket(client);
+    client = INVALID_SOCKET;
+  }
 }
+HTTPClient::~HTTPClient() { close(); }
 
-// HTTPS Client 
+// HTTPS Client
 
 HTTPSClient::HTTPSClient() : HTTPClient() {
   SSL_library_init();
@@ -82,59 +88,58 @@ HTTPSClient::HTTPSClient() : HTTPClient() {
   SSL_load_error_strings();
   ctx = nullptr;
   ctx = SSL_CTX_new(TLS_method());
-  if(ctx == nullptr){
+  if (ctx == nullptr) {
     throw std::runtime_error("SSL Contex failed.");
   }
- 
 }
 void HTTPSClient::conn(std::string hostname, int port) {
-  HTTPClient::conn(hostname,port);
+  HTTPClient::conn(hostname, port);
   ssl_client = SSL_new(ctx);
   if (!ssl_client) {
-      throw std::runtime_error("Unable to create SSL Client.");
+    throw std::runtime_error("Unable to create SSL Client.");
   }
   SSL_set_fd(ssl_client, client);
   if (SSL_connect(ssl_client) != 1) {
-      throw std::runtime_error("Unable to connect SSL Client.");
+    throw std::runtime_error("Unable to connect SSL Client.");
   }
 }
-int HTTPSClient::write(std::string data){ 
-    return SSL_write(ssl_client, data.c_str(), data.size());
+int HTTPSClient::write(std::string data) {
+  return SSL_write(ssl_client, data.c_str(), data.size());
 }
 std::string HTTPSClient::read(size_t size) {
   char recv_data[CHUNK_SIZE];
   std::string recv_buf;
 
-  if(size <= CHUNK_SIZE){
-    int recv_size =   SSL_read(ssl_client, recv_data, size);
-    recv_buf.append(recv_data,recv_size);
-  }else{
+  if (size <= CHUNK_SIZE) {
+    int recv_size = SSL_read(ssl_client, recv_data, size);
+    recv_buf.append(recv_data, recv_size);
+  } else {
 
     int total_size = 0;
     // read all 'size' bytes
-    while (total_size<size) {
-      int temp_size = size-total_size > CHUNK_SIZE
-                     ? CHUNK_SIZE
-                     : size-total_size ;
-      int bytes = SSL_read(ssl_client,recv_data,temp_size);
-      if (bytes > 0){
-        total_size+=bytes;
+    while (total_size < size) {
+      int temp_size =
+          size - total_size > CHUNK_SIZE ? CHUNK_SIZE : size - total_size;
+      int bytes = SSL_read(ssl_client, recv_data, temp_size);
+      if (bytes > 0) {
+        total_size += bytes;
         recv_buf.append(recv_data, bytes);
-      }else break;
+      } else
+        break;
     }
   }
-  return recv_buf;     
+  return recv_buf;
 }
-void HTTPSClient::close(){
+void HTTPSClient::close() {
   if (ssl_client) {
     SSL_shutdown(ssl_client);
     SSL_free(ssl_client);
   }
-  HTTPClient::close();
 }
 
-HTTPSClient::~HTTPSClient(){
+HTTPSClient::~HTTPSClient() {
+  close();
+
   if (ctx != nullptr)
     SSL_CTX_free(ctx);
-
 }

@@ -2,7 +2,7 @@
 #include "socket_client.h"
 #include "types.h"
 #include <bits/stdc++.h>
-
+#include <memory>
 enum METHOD { GET = 0, POST = 1, HEAD = 2 };
 class HTTPResponse;
 
@@ -20,9 +20,10 @@ public:
 class HTTPRequest : public BaseHTTPRequest {
 protected:
   const int MAX_REDIRECT = 5;
+  std::shared_ptr<SocketClient> get_client();
 
 public:
-  static std::map<std::string, SocketClient> pool;
+  static std::map<std::string, std::shared_ptr<SocketClient>> pool;
 
 public:
   HTTPRequest(URL url) : BaseHTTPRequest(url) {};

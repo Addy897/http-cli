@@ -1,5 +1,6 @@
 #include "socket_client.h"
 #include <stdexcept>
+#include <winsock2.h>
 
 SocketClient::SocketClient() {
   // default values for socket

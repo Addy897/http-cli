@@ -1,7 +1,7 @@
 
 
 CC=g++
-CFLAGS= -g
+CFLAGS= -g -Wall
 LDFLAGS= -lws2_32 -lssl -lcrypto
 
 EXECUTABLE=main

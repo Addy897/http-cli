@@ -4,7 +4,7 @@
 class HTTPClient : public SocketClient {
 public:
   HTTPClient();
-
+  ~HTTPClient();
   void conn(std::string hostname, int port) override;
   int write(std::string) override;
   std::string read(size_t size) override;

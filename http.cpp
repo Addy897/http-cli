@@ -2,9 +2,11 @@
 #include "http_client.h"
 #include "parser.h"
 #include "socket_client.h"
+#include <errno.h>
 #include <iostream>
-#include <memory>
 #include <stdexcept>
+#include <winsock2.h>
+std::map<std::string, std::shared_ptr<SocketClient>> HTTPRequest::pool;
 string HTTPRequest::http_request(METHOD method) {
   string m;
   switch (method) {
@@ -28,22 +30,40 @@ string HTTPRequest::http_request(METHOD method) {
   return request;
 }
 
+std::shared_ptr<SocketClient> HTTPRequest::get_client() {
+  std::shared_ptr<SocketClient> client;
+  if (HTTPRequest::pool.find(_url.url()) != HTTPRequest::pool.end()) {
+    // Logger::loginfo("get_client()","")
+    std::cout << "Reuse\n";
+    client = HTTPRequest::pool[_url.url()];
+  } else {
+    if (_url.scheme() == "https") {
+      client = std::make_shared<HTTPSClient>();
+    } else {
+      client = std::make_shared<HTTPClient>();
+    }
+    client->conn(_url.hostname(), _url.port());
+  }
+  return client;
+}
+
 HTTPResponse HTTPRequest::get(int redirect_times) {
   if (redirect_times > MAX_REDIRECT) {
     throw std::runtime_error("Too many rediretcs");
   }
+
   HTTPResponse response = HTTPResponse(*this);
   string request = http_request(GET);
-  std::unique_ptr<SocketClient> client;
-  if (_url.scheme() == "https") {
-    client = std::make_unique<HTTPSClient>();
-  } else {
-    client = std::make_unique<HTTPClient>();
+
+  std::shared_ptr<SocketClient> client = get_client();
+
+  int write_bytes = client->write(request);
+  if (write_bytes == -1) {
+    if (EPIPE == WSAGetLastError()) {
+      HTTPRequest::pool.erase(_url.url());
+      return get();
+    }
   }
-
-  client->conn(_url.hostname(), _url.port());
-
-  client->write(request);
 
   string result;
   string delimeter = "\r\n\r\n";
@@ -91,23 +111,22 @@ HTTPResponse HTTPRequest::get(int redirect_times) {
     raw_content.append(temp);
   }
   response.set_body(raw_content);
-  client->close();
 
   return response;
 }
 HTTPResponse HTTPRequest::post() {
   HTTPResponse response = HTTPResponse(*this);
   string request = http_request(POST);
-  std::unique_ptr<SocketClient> client;
-  if (_url.scheme() == "https") {
-    client = std::make_unique<HTTPSClient>();
-  } else {
-    client = std::make_unique<HTTPClient>();
+  std::shared_ptr<SocketClient> client = get_client();
+
+  int write_bytes = client->write(request);
+  if (write_bytes == -1) {
+    if (EPIPE == WSAGetLastError()) {
+      HTTPRequest::pool.erase(_url.url());
+      return post();
+    }
   }
 
-  client->conn(_url.hostname(), _url.port());
-
-  client->write(request);
   string result;
   string delimeter = "\r\n\r\n";
   char c[CHUNK_SIZE];
@@ -136,23 +155,22 @@ HTTPResponse HTTPRequest::post() {
     raw_content.append(temp, content_length);
   }
   response.set_body(raw_content);
-  client->close();
 
   return response;
 }
 HTTPResponse HTTPRequest::head() {
   HTTPResponse response = HTTPResponse(*this);
   string request = http_request(HEAD);
-  std::unique_ptr<SocketClient> client;
-  if (_url.scheme() == "https") {
-    client = std::make_unique<HTTPSClient>();
-  } else {
-    client = std::make_unique<HTTPClient>();
+
+  std::shared_ptr<SocketClient> client = get_client();
+
+  int write_bytes = client->write(request);
+  if (write_bytes == -1) {
+    if (EPIPE == WSAGetLastError()) {
+      HTTPRequest::pool.erase(_url.url());
+      return get();
+    }
   }
-
-  client->conn(_url.hostname(), _url.port());
-
-  client->write(request);
   string result;
   string delimeter = "\r\n\r\n";
   char c[CHUNK_SIZE];
