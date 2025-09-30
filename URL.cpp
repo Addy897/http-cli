@@ -1,4 +1,5 @@
 #include "URL.h"
+#include "logger.h"
 
 URL::URL(string url) {
   this->_url = url;
@@ -6,8 +7,15 @@ URL::URL(string url) {
   parse_url();
 }
 void URL::parse_url() {
-  size_t index = _url.find("://");
+  std::string source = "view-source:";
+  size_t index = _url.find(source);
+  if (index != string::npos) {
+    _view_source = true;
+    _url.erase(index, source.size());
+  }
+  index = _url.find("://");
   if (index == string::npos) {
+    LOGGER::log_error("parse_url()", "got unknown url: %s", _url.c_str());
     return;
   }
   _scheme = _url.substr(0, index);

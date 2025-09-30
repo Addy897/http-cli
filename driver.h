@@ -1,5 +1,8 @@
+#include "http.h"
 #include <iostream>
 class Driver {
 public:
-  static std::string get(std::string);
+  static HTTPResponse get(std::string);
+  static HTTPResponse post(std::string);
+  static HTTPResponse head(std::string);
 };

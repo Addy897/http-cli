@@ -1,12 +1,7 @@
 #pragma once
 #include <cstdio>
 #include <string>
-#ifdef LOG_ALL
-#define LOG_DEBUG
-#define LOG_INFO
-#define LOG_WARN
-#define LOG_ERROR
-#endif
+
 #define RESET "\033[0m"
 #define BLACK "\033[30m"              /* Black */
 #define RED "\033[31m"                /* Red */
@@ -24,7 +19,20 @@
 #define BOLDMAGENTA "\033[1m\033[35m" /* Bold Magenta */
 #define BOLDCYAN "\033[1m\033[36m"    /* Bold Cyan */
 #define BOLDWHITE "\033[1m\033[37m"   /* Bold White */
+
+enum LL {
+  DEBUG,
+  INFO,
+  ERR,
+  WARN,
+  ALL,
+  NONE,
+};
+
 class LOGGER {
+public:
+  static enum LL LOG_LEVEL;
+
 public:
   static void log_debug(std::string, const char *format, ...);
   static void log_info(std::string, const char *format, ...);
