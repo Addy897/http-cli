@@ -43,6 +43,7 @@ protected:
   void read_body(HTTPResponse &);
   void send_request(METHOD);
   void handle_chunks(HTTPResponse &);
+  void cache_body(HTTPResponse &);
 };
 
 class HTTPResponse {
@@ -59,4 +60,6 @@ public:
 public:
   HTTPResponse() {}
   HTTPResponse(BaseHTTPRequest req) : request(req) {};
+
+  void print_headers();
 };

@@ -1,4 +1,5 @@
 #include "http.h"
+#include "cache_store.h"
 #include "encoding.h"
 #include "http_client.h"
 #include "logger.h"
@@ -152,7 +153,8 @@ void HTTPRequest::read_headers(HTTPResponse &response) {
 void HTTPRequest::read_body(HTTPResponse &response) {
   auto client = get_client();
   if (response.headers.count("transfer-encoding")) {
-    int chunked_index = response.headers["transfer-encoding"].find("chunked");
+    size_t chunked_index =
+        response.headers["transfer-encoding"].find("chunked");
 
     LOGGER::log_debug("read_body()", "transfer-encoding");
     if (chunked_index != string::npos)
@@ -193,8 +195,41 @@ HTTPResponse HTTPRequest::get(int redirect_times) {
       return get(redirect_times + 1);
     }
   }
-  read_body(response);
+  CacheStore &store = CacheStore::get_instance();
+  std::string content = store.get(_url.url());
+  if (!content.empty())
+    response.body = content;
+  else {
+    read_body(response);
+    cache_body(response);
+  }
   return response;
+}
+void HTTPRequest::cache_body(HTTPResponse &response) {
+
+  CacheStore &store = CacheStore::get_instance();
+  auto it = response.headers.find("cache-control");
+  if (it != response.headers.end()) {
+    string delimeter = "max-age=";
+    size_t delimeter_index = it->second.find(delimeter);
+    if (delimeter_index == string::npos) {
+      delimeter = "no-store";
+      delimeter_index = it->second.find(delimeter);
+      if (delimeter_index != string::npos) {
+        return;
+      }
+    } else {
+      time_t timestamp =
+          std::stoul(it->second.substr(delimeter_index + delimeter.size()));
+      timestamp += time(NULL);
+      store.set(_url.url(), response.body, timestamp);
+      return;
+    }
+  }
+  time_t timestamp = time(NULL);
+  struct tm datetime = *localtime(&timestamp);
+  datetime.tm_sec += 1;
+  store.set(_url.url(), response.body, mktime(&datetime));
 }
 HTTPResponse HTTPRequest::post() {
   HTTPResponse response = HTTPResponse(*this);
@@ -225,4 +260,11 @@ HTTPResponse HTTPRequest::head(int redirect_times) {
   }
 
   return response;
+}
+
+void HTTPResponse::print_headers() {
+  for (const auto &it : headers) {
+
+    std::cout << it.first << ": " << it.second << "\n";
+  }
 }

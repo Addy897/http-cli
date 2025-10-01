@@ -7,6 +7,7 @@ using namespace std;
 struct OPTIONS {
   METHOD m = GET;
   bool parse = false;
+  bool show_headers = false;
 } OPTIONS;
 
 int usage(const char *executable) {
@@ -14,6 +15,7 @@ int usage(const char *executable) {
   cout << "-x METHOD (GET,POST,HEAD) default is GET \n";
   cout << "-h Shows Usage\n";
   cout << "-p Parse HTML\n";
+  cout << "-sh Show Headers\n";
   cout << "-l LOG LEVEL (ALL, DEBUG, INFO, WARN, ERROR) default is none\n";
   return 0;
 }
@@ -35,6 +37,8 @@ bool parse_args(int argc, char **argv) {
       else
         cout << "Invalid method: " << argv[i] << " using GET\n";
 
+    } else if (strncmp(argv[i], "-sh", 2) == 0) {
+      OPTIONS.show_headers = true;
     } else if (strncmp(argv[i], "-p", 2) == 0) {
       OPTIONS.parse = true;
     } else if (strncmp(argv[i], "-h", 2) == 0) {
@@ -70,6 +74,7 @@ int main(int argc, char **argv) {
     switch ((int)OPTIONS.m) {
     case GET:
       response = Driver::get(url);
+      response = Driver::get(url);
       break;
     case HEAD:
       response = Driver::head(url);
@@ -78,15 +83,13 @@ int main(int argc, char **argv) {
       response = Driver::post(url);
       break;
     }
-    if (OPTIONS.m == HEAD) {
-      for (auto &it : response.headers)
-        cout << it.first << ": " << it.second << "\n";
+    if (OPTIONS.parse && !response.url().view_source()) {
+      content = Parser::parse_html(response.body);
     } else {
-      if (OPTIONS.parse && !response.url().view_source()) {
-        content = Parser::parse_html(response.body);
-      } else {
-        content = response.body;
-      }
+      content = response.body;
+    }
+    if (OPTIONS.show_headers) {
+      response.print_headers();
     }
     cout << content;
   }
