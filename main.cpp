@@ -27,6 +27,10 @@ bool parse_args(int argc, char **argv) {
     return usage(argv[0]);
   for (int i = 1; i < argc; i++) {
     if (strncmp(argv[i], "-x", 2) == 0) {
+      if (i + 1 >= argc) {
+        cerr << "Expected value after " << argv[i - 1] << "\n";
+        return false;
+      }
       i++;
       if (strncmp(argv[i], "GET", 3) == 0)
         OPTIONS.m = GET;
@@ -44,6 +48,10 @@ bool parse_args(int argc, char **argv) {
     } else if (strncmp(argv[i], "-h", 2) == 0) {
       return usage(argv[0]);
     } else if (strncmp(argv[i], "-l", 2) == 0) {
+      if (i + 1 >= argc) {
+        cerr << "Expected value after " << argv[i - 1] << "\n";
+        return false;
+      }
       i++;
       if (strncmp(argv[i], "ALL", 3) == 0) {
         LOGGER::LOG_LEVEL = ALL;
