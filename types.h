@@ -1,4 +1,7 @@
 #pragma once
 #include <iostream>
-#include <map>
+#include <bits/stdc++.h>
+
 typedef std::map<std::string, std::string> HEADERS;
+typedef  unsigned char  Byte;
+typedef std::vector<Byte> BytesArray;

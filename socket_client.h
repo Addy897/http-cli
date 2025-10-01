@@ -1,4 +1,5 @@
 #pragma once
+#include "types.h"
 #include <iostream>
 #include <winsock2.h>
 
@@ -9,7 +10,7 @@ protected:
 
   SOCKET client;
   sockaddr_in client_addr;
-  
+
 public:
   SocketClient();
   ~SocketClient();
@@ -18,5 +19,4 @@ public:
   virtual int write(std::string) = 0;
   virtual std::string read(size_t size) = 0;
   virtual void close() = 0;
-
-  };
+};

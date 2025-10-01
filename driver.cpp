@@ -14,6 +14,7 @@ HTTPResponse Driver::get(std::string _url) {
     return resp;
   }
   HTTPRequest req(url);
+  req.add_header("Accept-Encoding", "gzip");
   HTTPResponse resp = req.get();
   return resp;
 }
@@ -30,12 +31,13 @@ HTTPResponse Driver::post(std::string _url) {
 }
 HTTPResponse Driver::head(std::string _url) {
   URL url(_url);
-  if (url.scheme() != "http" || url.scheme() != "https") {
+  if (url.scheme() != "http" && url.scheme() != "https") {
     LOGGER::log_error("head()", "Invalid scheme for post method: %s",
                       url.scheme().c_str());
     throw std::runtime_error("Invlaid scheme");
   }
   HTTPRequest req(url);
+  req.add_header("Accept-Encoding", "gzip");
   HTTPResponse resp = req.head();
   return resp;
 }

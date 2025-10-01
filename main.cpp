@@ -1,7 +1,7 @@
 #include "driver.h"
+#include "logger.h"
 #include "parser.h"
 #include <cstring>
-#include "logger.h"
 using namespace std;
 
 struct OPTIONS {
@@ -42,22 +42,24 @@ bool parse_args(int argc, char **argv) {
     } else if (strncmp(argv[i], "-l", 2) == 0) {
       i++;
       if (strncmp(argv[i], "ALL", 3) == 0) {
-          LOGGER::LOG_LEVEL = ALL;
+        LOGGER::LOG_LEVEL = ALL;
       } else if (strncmp(argv[i], "DEBUG", 5) == 0) {
-          LOGGER::LOG_LEVEL = DEBUG;
+        LOGGER::LOG_LEVEL = DEBUG;
       } else if (strncmp(argv[i], "INFO", 4) == 0) {
-          LOGGER::LOG_LEVEL = INFO;
+        LOGGER::LOG_LEVEL = INFO;
       } else if (strncmp(argv[i], "WARN", 4) == 0) {
         LOGGER::LOG_LEVEL = WARN;
-      } else if (strncmp(argv[i], "ERROR", 5) == 0) { 
-          LOGGER::LOG_LEVEL = ERR;
-      }else{
+      } else if (strncmp(argv[i], "ERROR", 5) == 0) {
+        LOGGER::LOG_LEVEL = ERR;
+      } else {
         LOGGER::LOG_LEVEL = NONE;
       }
     } else {
       url = argv[i];
     }
   }
+  if (url.empty())
+    return usage(argv[0]);
   return 1;
 }
 int main(int argc, char **argv) {
@@ -76,11 +78,15 @@ int main(int argc, char **argv) {
       response = Driver::post(url);
       break;
     }
-
-    if (OPTIONS.parse) {
-      content = Parser::parse_html(response.body);
+    if (OPTIONS.m == HEAD) {
+      for (auto &it : response.headers)
+        cout << it.first << ": " << it.second << "\n";
     } else {
-      content = response.body;
+      if (OPTIONS.parse && !response.url().view_source()) {
+        content = Parser::parse_html(response.body);
+      } else {
+        content = response.body;
+      }
     }
     cout << content;
   }

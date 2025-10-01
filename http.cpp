@@ -1,13 +1,16 @@
 #include "http.h"
+#include "encoding.h"
 #include "http_client.h"
 #include "logger.h"
 #include "parser.h"
 #include "socket_client.h"
 
+#include <cstddef>
 #include <errno.h>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <winsock2.h>
 std::map<std::string, std::shared_ptr<SocketClient>> HTTPRequest::pool;
 string HTTPRequest::build_request(METHOD method) {
@@ -55,7 +58,59 @@ std::shared_ptr<SocketClient> HTTPRequest::get_client() {
   }
   return client;
 }
-void HTTPRequest::handle_chunks(HTTPResponse &response) { return; }
+void HTTPRequest::handle_chunks(HTTPResponse &response) {
+  auto client = get_client();
+
+  std::string data_buffer = std::move(response.body);
+  response.body.clear();
+  while (true) {
+    size_t size_line_end = data_buffer.find("\r\n");
+
+    while (size_line_end == std::string::npos) {
+      std::string chunk = client->read(CHUNK_SIZE);
+      if (chunk.empty()) {
+        LOGGER::log_error("handle_chunks()", "empty chunk.");
+        return;
+      }
+      data_buffer.append(chunk);
+      size_line_end = data_buffer.find("\r\n");
+    }
+
+    std::string size_line = data_buffer.substr(0, size_line_end);
+    data_buffer.erase(0, size_line_end + 2);
+    size_t chunk_len;
+    try {
+      chunk_len = std::stoul(size_line, nullptr, 16);
+    } catch (const std::exception &e) {
+      LOGGER::log_error("handle_chunks()",
+                        "Failed to parse chunk size: %s. Error: %s",
+                        size_line.c_str(), e.what());
+      return;
+    }
+
+    if (chunk_len == 0) {
+      break;
+    }
+
+    size_t remaining_len = chunk_len;
+
+    size_t available_in_buffer = std::min(remaining_len, data_buffer.size());
+    response.body.append(data_buffer.substr(0, available_in_buffer));
+    data_buffer.erase(0, available_in_buffer);
+    remaining_len -= available_in_buffer;
+    if (remaining_len > 0) {
+      std::string chunk_data = client->read(remaining_len);
+      if (chunk_data.size() != remaining_len) {
+        LOGGER::log_error("handle_chunks()",
+                          "invalid size of chunks %d, expected %d",
+                          chunk_data.size(), remaining_len);
+      }
+      response.body.append(chunk_data);
+    }
+
+    client->read(2);
+  }
+}
 void HTTPRequest::send_request(METHOD method) {
   string request = build_request(method);
 
@@ -92,21 +147,25 @@ void HTTPRequest::read_headers(HTTPResponse &response) {
   string partial_body =
       result.substr(end_index + delimeter.size(), result.size());
 
-  response.body.append(partial_body);
+  response.body = partial_body;
 }
 void HTTPRequest::read_body(HTTPResponse &response) {
   auto client = get_client();
   if (response.headers.count("transfer-encoding")) {
+    LOGGER::log_debug("read_body()", "transfer-encoding");
     handle_chunks(response);
-  }
-  if (response.headers.count("content-length")) {
+  } else if (response.headers.count("content-length")) {
     int content_length =
         stoi(response.headers["content-length"]) - response.body.size();
-    if (content_length < 0)
-      content_length = 0;
-    string temp = client->read(content_length);
+    if (content_length > 0) {
+      string temp = client->read(content_length);
 
-    response.body.append(temp);
+      response.body.append(temp);
+    }
+  }
+  if (response.headers.count("content-encoding") &&
+      response.headers["content-encoding"] == "gzip") {
+    response.body = decompressGzip(response.body);
   }
 }
 HTTPResponse HTTPRequest::get(int redirect_times) {
@@ -119,7 +178,6 @@ HTTPResponse HTTPRequest::get(int redirect_times) {
   read_headers(response);
 
   LOGGER::log_debug("get()", "response code: %d", response.code);
-
   if (response.code == 301 || response.code == 302) {
     if (response.headers.find("location") != response.headers.end()) {
       string location = response.headers["location"];

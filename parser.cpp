@@ -3,19 +3,26 @@
 #include "utils.h"
 using std::string;
 string Parser::get_line(string &buff) {
-  size_t line_index = buff.find("\n");
+  size_t line_index = buff.find("\r\n");
 
   if (line_index != string::npos) {
-    string line = buff.substr(0, line_index + 1);
+    string line = buff.substr(0, line_index);
     buff = buff.substr(line_index + 1, buff.size());
     return line;
+  } else {
+    line_index = buff.find("\n");
+    if (line_index != string::npos) {
+      string line = buff.substr(0, line_index);
+      buff = buff.substr(line_index + 1, buff.size());
+      return line;
+    }
   }
   return buff;
 }
 HEADERS Parser::parse_headers(std::string raw_header) {
   HEADERS response_headers;
   string line = get_line(raw_header);
-  while (line != "\r\n") {
+  while (!line.empty()) {
     size_t pos = line.find(":");
     if (pos == string ::npos)
       break;
