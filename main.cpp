@@ -37,7 +37,7 @@ bool parse_args(int argc, char **argv) {
       else
         cout << "Invalid method: " << argv[i] << " using GET\n";
 
-    } else if (strncmp(argv[i], "-sh", 2) == 0) {
+    } else if (strncmp(argv[i], "-sh", 3) == 0) {
       OPTIONS.show_headers = true;
     } else if (strncmp(argv[i], "-p", 2) == 0) {
       OPTIONS.parse = true;
