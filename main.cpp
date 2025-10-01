@@ -82,7 +82,6 @@ int main(int argc, char **argv) {
     switch ((int)OPTIONS.m) {
     case GET:
       response = Driver::get(url);
-      response = Driver::get(url);
       break;
     case HEAD:
       response = Driver::head(url);
