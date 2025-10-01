@@ -152,8 +152,11 @@ void HTTPRequest::read_headers(HTTPResponse &response) {
 void HTTPRequest::read_body(HTTPResponse &response) {
   auto client = get_client();
   if (response.headers.count("transfer-encoding")) {
+    int chunked_index = response.headers["transfer-encoding"].find("chunked");
+
     LOGGER::log_debug("read_body()", "transfer-encoding");
-    handle_chunks(response);
+    if (chunked_index != string::npos)
+      handle_chunks(response);
   } else if (response.headers.count("content-length")) {
     int content_length =
         stoi(response.headers["content-length"]) - response.body.size();
