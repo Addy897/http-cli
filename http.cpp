@@ -128,7 +128,7 @@ void HTTPRequest::handle_chunks(HTTPResponse &response) {
     }
     if (data_buffer.empty())
       client->read(2);
-    else
+    else if (data_buffer.size() >= 2 && data_buffer.substr(0, 2) == "\r\n")
       data_buffer.erase(0, 2);
   }
 }
