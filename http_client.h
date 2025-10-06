@@ -16,6 +16,9 @@ protected:
   SSL_CTX *ctx;
   SSL *ssl_client;
 
+protected:
+  char *ossl_err_as_string(void);
+
 public:
   HTTPSClient();
   ~HTTPSClient();

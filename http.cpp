@@ -14,8 +14,16 @@
 #include <string>
 #include <winsock2.h>
 std::map<std::string, std::shared_ptr<SocketClient>> HTTPRequest::pool;
+
+HTTPRequest::HTTPRequest(URL _url, string data, bool asjson)
+    : BaseHTTPRequest(_url) {
+  m_json = data;
+  m_asjson = asjson;
+}
+
 string HTTPRequest::build_request(METHOD method) {
   string m;
+  string body = "";
   switch (method) {
   case GET:
     m = "GET";
@@ -32,7 +40,8 @@ string HTTPRequest::build_request(METHOD method) {
   for (auto &val : _headers)
     request += val.first + ": " + val.second + "\r\n";
   request += "Connection: keep-alive\r\n";
-  request += "\r\n\r\n";
+  request += "\r\n";
+
   return request;
 }
 std::shared_ptr<SocketClient> HTTPRequest::get_client() {
@@ -62,7 +71,7 @@ std::shared_ptr<SocketClient> HTTPRequest::get_client() {
 void HTTPRequest::handle_chunks(HTTPResponse &response) {
   auto client = get_client();
 
-  std::string data_buffer = std::move(response.body);
+  std::string data_buffer = response.body;
   response.body.clear();
   while (true) {
     size_t size_line_end = data_buffer.find("\r\n");
@@ -105,15 +114,31 @@ void HTTPRequest::handle_chunks(HTTPResponse &response) {
         LOGGER::log_error("handle_chunks()",
                           "invalid size of chunks %d, expected %d",
                           chunk_data.size(), remaining_len);
+
+        response.body.append(chunk_data);
+        return;
       }
       response.body.append(chunk_data);
     }
-
-    client->read(2);
+    if (data_buffer.empty())
+      client->read(2);
   }
 }
 void HTTPRequest::send_request(METHOD method) {
+  if (method == POST) {
+    if (!m_json.empty()) {
+      if (m_asjson) {
+        add_header("Content-Type", "application/json");
+        add_header("Content-Length", std::to_string(m_json.size()));
+      }
+    }
+  }
   string request = build_request(method);
+
+  LOGGER::log_debug("send_request()", "REQUEST: \n%s\n", request.c_str());
+  if (method == POST && !m_json.empty()) {
+    request += m_json;
+  }
 
   std::shared_ptr<SocketClient> client = get_client();
 
@@ -156,7 +181,6 @@ void HTTPRequest::read_body(HTTPResponse &response) {
     size_t chunked_index =
         response.headers["transfer-encoding"].find("chunked");
 
-    LOGGER::log_debug("read_body()", "transfer-encoding");
     if (chunked_index != string::npos)
       handle_chunks(response);
   } else if (response.headers.count("content-length")) {

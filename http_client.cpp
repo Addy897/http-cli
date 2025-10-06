@@ -1,5 +1,7 @@
 #include "http_client.h"
+#include "logger.h"
 #include "socket_client.h"
+#include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <psdk_inc/_socket_types.h>
 #include <stdexcept>
@@ -92,15 +94,32 @@ HTTPSClient::HTTPSClient() : HTTPClient() {
     throw std::runtime_error("SSL Contex failed.");
   }
 }
+char *HTTPSClient::ossl_err_as_string(void) {
+  BIO *bio = BIO_new(BIO_s_mem());
+
+  ERR_print_errors(bio);
+  char *buf = NULL;
+  size_t len = BIO_get_mem_data(bio, &buf);
+  char *ret = (char *)calloc(1, 1 + len);
+  if (ret)
+    memcpy(ret, buf, len);
+  BIO_free(bio);
+  return ret;
+}
 void HTTPSClient::conn(std::string hostname, int port) {
   HTTPClient::conn(hostname, port);
   ssl_client = SSL_new(ctx);
   if (!ssl_client) {
+
+    LOGGER::log_error("conn()", "Unable to create SSL client: %s",
+                      ossl_err_as_string());
     throw std::runtime_error("Unable to create SSL Client.");
   }
   SSL_set_fd(ssl_client, client);
   if (SSL_connect(ssl_client) != 1) {
-    throw std::runtime_error("Unable to connect SSL Client.");
+    LOGGER::log_error("conn()", "Unable to connect SSL client: %s",
+                      ossl_err_as_string());
+    throw std::runtime_error("SSL connect error.");
   }
 }
 int HTTPSClient::write(std::string data) {

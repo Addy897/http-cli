@@ -3,6 +3,7 @@
 #include "socket_client.h"
 #include "types.h"
 #include <bits/stdc++.h>
+#include <json/json.h>
 #include <memory>
 enum METHOD { GET = 0, POST = 1, HEAD = 2 };
 class HTTPResponse;
@@ -23,13 +24,15 @@ class HTTPRequest : public BaseHTTPRequest {
 protected:
   const int MAX_REDIRECT = 5;
   std::shared_ptr<SocketClient> get_client();
+  std::string m_json;
+  bool m_asjson;
 
 public:
   static std::map<std::string, std::shared_ptr<SocketClient>> pool;
 
 public:
   HTTPRequest(URL url) : BaseHTTPRequest(url) {};
-
+  HTTPRequest(URL url, string data, bool asjson = true);
   void add_header(string key, string val) { _headers[key] = val; }
   void add_headers(HEADERS h) { _headers.insert(h.begin(), h.end()); }
 

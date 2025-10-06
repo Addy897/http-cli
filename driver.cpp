@@ -2,8 +2,9 @@
 #include "file_reader.h"
 #include "http.h"
 #include "logger.h"
+#include "types.h"
 #include <stdexcept>
-HTTPResponse Driver::get(std::string _url) {
+HTTPResponse Driver::get(std::string _url, HEADERS headers) {
   URL url(_url);
   if (url.scheme() == "file") {
     FileReader f(url.path());
@@ -14,22 +15,24 @@ HTTPResponse Driver::get(std::string _url) {
     return resp;
   }
   HTTPRequest req(url);
-  req.add_header("Accept-Encoding", "gzip");
+  req.add_headers(headers);
   HTTPResponse resp = req.get();
   return resp;
 }
-HTTPResponse Driver::post(std::string _url) {
+HTTPResponse Driver::post(std::string _url, HEADERS headers, std::string data) {
   URL url(_url);
   if (url.scheme() != "http" && url.scheme() != "https") {
     LOGGER::log_error("post()", "Invalid scheme for post method: %s",
                       url.scheme().c_str());
     throw std::runtime_error("Invalid scheme");
   }
-  HTTPRequest req(url);
+  HTTPRequest req(url, data);
+  if (!headers.empty())
+    req.add_headers(headers);
   HTTPResponse resp = req.post();
   return resp;
 }
-HTTPResponse Driver::head(std::string _url) {
+HTTPResponse Driver::head(std::string _url, HEADERS headers) {
   URL url(_url);
   if (url.scheme() != "http" && url.scheme() != "https") {
     LOGGER::log_error("head()", "Invalid scheme for post method: %s",
@@ -37,7 +40,7 @@ HTTPResponse Driver::head(std::string _url) {
     throw std::runtime_error("Invlaid scheme");
   }
   HTTPRequest req(url);
-  req.add_header("Accept-Encoding", "gzip");
+  req.add_headers(headers);
   HTTPResponse resp = req.head();
   return resp;
 }

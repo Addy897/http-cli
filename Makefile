@@ -1,8 +1,8 @@
 
 
 CC=g++
-CFLAGS= -g -Wall 
-LDFLAGS= -lws2_32 -lssl -lcrypto -lz
+CFLAGS= -g -Wall -std=c++20
+LDFLAGS= -lws2_32 -lssl -lcrypto -lz -ljsoncpp
 EXECUTABLE=main
 FILES= $(wildcard *.cpp)
 
