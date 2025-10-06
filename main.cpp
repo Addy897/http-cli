@@ -108,10 +108,10 @@ int main(int argc, char **argv) {
     HTTPResponse response;
     switch ((int)OPTIONS.m) {
     case GET:
-      response = Driver::get(url);
+      response = Driver::get(url, OPTIONS.headers);
       break;
     case HEAD:
-      response = Driver::head(url);
+      response = Driver::head(url, OPTIONS.headers);
       break;
     case POST:
       response = Driver::post(url, OPTIONS.headers, OPTIONS.data);

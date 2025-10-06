@@ -102,6 +102,9 @@ void HTTPRequest::handle_chunks(HTTPResponse &response) {
       break;
     }
 
+    LOGGER::log_debug("handle_chunks()",
+                      "chunk_len: 0x%s(%d) current_buffer: %d",
+                      size_line.c_str(), chunk_len, data_buffer.size());
     size_t remaining_len = chunk_len;
 
     size_t available_in_buffer = std::min(remaining_len, data_buffer.size());
@@ -110,18 +113,23 @@ void HTTPRequest::handle_chunks(HTTPResponse &response) {
     remaining_len -= available_in_buffer;
     if (remaining_len > 0) {
       std::string chunk_data = client->read(remaining_len);
-      if (chunk_data.size() != remaining_len) {
-        LOGGER::log_error("handle_chunks()",
-                          "invalid size of chunks %d, expected %d",
-                          chunk_data.size(), remaining_len);
+      while (chunk_data.size() != remaining_len) {
+        LOGGER::log_warning("handle_chunks()",
+                            "invalid size of chunks %d, expected %d (retrying)",
+                            chunk_data.size(), remaining_len);
+        std::string temp = client->read(remaining_len - chunk_data.size());
 
-        response.body.append(chunk_data);
-        return;
+        if (temp.empty()) {
+          break;
+        }
+        chunk_data += temp;
       }
       response.body.append(chunk_data);
     }
     if (data_buffer.empty())
       client->read(2);
+    else
+      data_buffer.erase(0, 2);
   }
 }
 void HTTPRequest::send_request(METHOD method) {
