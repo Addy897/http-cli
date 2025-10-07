@@ -14,13 +14,6 @@
 #include <string>
 #include <winsock2.h>
 std::map<std::string, std::shared_ptr<SocketClient>> HTTPRequest::pool;
-
-HTTPRequest::HTTPRequest(URL _url, string data, bool asjson)
-    : BaseHTTPRequest(_url) {
-  m_json = data;
-  m_asjson = asjson;
-}
-
 string HTTPRequest::build_request(METHOD method) {
   string m;
   string body = "";
@@ -263,7 +256,9 @@ void HTTPRequest::cache_body(HTTPResponse &response) {
   datetime.tm_sec += 1;
   store.set(_url.url(), response.body, mktime(&datetime));
 }
-HTTPResponse HTTPRequest::post() {
+HTTPResponse HTTPRequest::post(string json, bool asjson) {
+  m_json = json;
+  m_asjson = asjson;
   HTTPResponse response = HTTPResponse(*this);
   send_request(POST);
   read_headers(response);

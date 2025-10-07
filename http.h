@@ -32,12 +32,11 @@ public:
 
 public:
   HTTPRequest(URL url) : BaseHTTPRequest(url) {};
-  HTTPRequest(URL url, string data, bool asjson = true);
   void add_header(string key, string val) { _headers[key] = val; }
   void add_headers(HEADERS h) { _headers.insert(h.begin(), h.end()); }
 
   HTTPResponse get(int redirect_times = 0);
-  HTTPResponse post();
+  HTTPResponse post(std::string json = "", bool asjson = true);
   HTTPResponse head(int redirect_times = 0);
 
 protected:

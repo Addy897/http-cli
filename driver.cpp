@@ -26,10 +26,10 @@ HTTPResponse Driver::post(std::string _url, HEADERS headers, std::string data) {
                       url.scheme().c_str());
     throw std::runtime_error("Invalid scheme");
   }
-  HTTPRequest req(url, data);
+  HTTPRequest req(url);
   if (!headers.empty())
     req.add_headers(headers);
-  HTTPResponse resp = req.post();
+  HTTPResponse resp = req.post(data);
   return resp;
 }
 HTTPResponse Driver::head(std::string _url, HEADERS headers) {
