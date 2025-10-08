@@ -1,35 +1,37 @@
 #include "encoding.h"
 #include "logger.h"
 #include <vector>
-std::string decompressGzip(const std::string &compressed_data) {
+#include <zlib.h>
+
+Decoder::Decoder(bool complete) {
+  m_strm.zalloc = Z_NULL;
+  m_strm.zfree = Z_NULL;
+  m_strm.opaque = Z_NULL;
+  m_strm.avail_in = 0;
+  m_strm.next_in = Z_NULL;
+  if (inflateInit2(&m_strm, MAX_WBITS | 32) != Z_OK) {
+    LOGGER::log_error("decompress_gzip()", "inflateInit2 failed.");
+    return;
+  }
+  m_complete_buffer = complete;
+  m_init = true;
+}
+std::string Decoder::decompress_gzip(const std::string &compressed_data) {
   std::string decompressed_data;
 
-  z_stream strm;
-  strm.zalloc = Z_NULL;
-  strm.zfree = Z_NULL;
-  strm.opaque = Z_NULL;
-  strm.avail_in = 0;
-  strm.next_in = Z_NULL;
-
-  if (inflateInit2(&strm, 16 + MAX_WBITS) != Z_OK) {
-    LOGGER::log_error("decompressGzip()", "inflateInit2 failed.");
-    return {};
-  }
   const unsigned char *const_ptr =
       reinterpret_cast<const unsigned char *>(compressed_data.c_str());
 
-  strm.next_in = const_cast<unsigned char *>(const_ptr);
-  strm.avail_in = compressed_data.size();
-
-  const size_t CHUNK_SIZE = 16384; // 16KB buffer
+  m_strm.next_in = const_cast<unsigned char *>(const_ptr);
+  m_strm.avail_in = compressed_data.size();
+  const size_t CHUNK_SIZE = 16384;
   std::vector<unsigned char> buffer(CHUNK_SIZE);
   int ret;
 
   do {
-    strm.avail_out = CHUNK_SIZE;
-    strm.next_out = buffer.data();
-    ret = inflate(&strm, Z_NO_FLUSH);
-    LOGGER::log_debug("decompressGzip()", "inflate ret: %d", ret);
+    m_strm.avail_out = CHUNK_SIZE;
+    m_strm.next_out = buffer.data();
+    ret = inflate(&m_strm, Z_NO_FLUSH);
 
     switch (ret) {
     case Z_ERRNO:
@@ -39,19 +41,23 @@ std::string decompressGzip(const std::string &compressed_data) {
     case Z_NEED_DICT:
     case Z_DATA_ERROR:
     case Z_MEM_ERROR:
-      inflateEnd(&strm);
-      LOGGER::log_error("decompressGzip()", "Decompression error: %s",
-                        strm.msg);
+      LOGGER::log_error("decompress_gzip()", "Decompression error %d: %s", ret,
+                        m_strm.msg);
+      end_gzip();
       return {};
     }
 
-    size_t have = CHUNK_SIZE - strm.avail_out;
-    decompressed_data.insert(decompressed_data.end(), buffer.begin(),
-                             buffer.begin() + have);
+    size_t have = CHUNK_SIZE - m_strm.avail_out;
+    decompressed_data.append(buffer.begin(), buffer.begin() + have);
 
-  } while (ret != Z_STREAM_END);
-
-  inflateEnd(&strm);
-
+  } while (m_strm.avail_out == 0 && ret != Z_STREAM_END);
+  if (ret == Z_STREAM_END || m_complete_buffer) {
+    end_gzip();
+  }
   return decompressed_data;
 }
+void Decoder::end_gzip() {
+  if (m_init)
+    inflateEnd(&m_strm);
+}
+Decoder::~Decoder() { end_gzip(); }

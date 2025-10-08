@@ -1,6 +1,5 @@
 #include "http.h"
 #include "cache_store.h"
-#include "encoding.h"
 #include "http_client.h"
 #include "logger.h"
 #include "parser.h"
@@ -8,6 +7,7 @@
 
 #include <cstddef>
 #include <errno.h>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -61,9 +61,25 @@ std::shared_ptr<SocketClient> HTTPRequest::get_client() {
   }
   return client;
 }
+std::string HTTPRequest::decompress(HTTPResponse &response,
+                                    std::string &content, Decoder &decoder) {
+  auto it = response.headers.find("content-encoding");
+  if (it != response.headers.end() && it->second == "gzip") {
+
+    LOGGER::log_debug("append_decoded()", "content-encoding: gzip");
+    return decoder.decompress_gzip(content);
+  } else {
+    return content;
+  }
+}
+void HTTPRequest::handle_stream(HTTPResponse &response, std::string &content) {
+  if (!m_stream || !m_callback)
+    return;
+  m_callback(content);
+}
 void HTTPRequest::handle_chunks(HTTPResponse &response) {
   auto client = get_client();
-
+  Decoder decoder(false);
   std::string data_buffer = response.body;
   response.body.clear();
   while (true) {
@@ -101,7 +117,11 @@ void HTTPRequest::handle_chunks(HTTPResponse &response) {
     size_t remaining_len = chunk_len;
 
     size_t available_in_buffer = std::min(remaining_len, data_buffer.size());
-    response.body.append(data_buffer.substr(0, available_in_buffer));
+    string content = data_buffer.substr(0, available_in_buffer);
+    content = decompress(response, content, decoder);
+    response.body += content;
+    if (m_stream)
+      handle_stream(response, content);
     data_buffer.erase(0, available_in_buffer);
     remaining_len -= available_in_buffer;
     if (remaining_len > 0) {
@@ -117,13 +137,17 @@ void HTTPRequest::handle_chunks(HTTPResponse &response) {
         }
         chunk_data += temp;
       }
-      response.body.append(chunk_data);
+      chunk_data = decompress(response, chunk_data, decoder);
+      response.body += chunk_data;
+      if (m_stream)
+        handle_stream(response, chunk_data);
     }
     if (data_buffer.empty())
       client->read(2);
     else if (data_buffer.size() >= 2 && data_buffer.substr(0, 2) == "\r\n")
       data_buffer.erase(0, 2);
   }
+  decoder.end_gzip();
 }
 void HTTPRequest::send_request(METHOD method) {
   if (method == POST) {
@@ -188,14 +212,10 @@ void HTTPRequest::read_body(HTTPResponse &response) {
     int content_length =
         stoi(response.headers["content-length"]) - response.body.size();
     if (content_length > 0) {
+      Decoder decoder(true);
       string temp = client->read(content_length);
-
-      response.body.append(temp);
+      response.body += decompress(response, temp, decoder);
     }
-  }
-  if (response.headers.count("content-encoding") &&
-      response.headers["content-encoding"] == "gzip") {
-    response.body = decompressGzip(response.body);
   }
 }
 HTTPResponse HTTPRequest::get(int redirect_times) {
@@ -256,9 +276,12 @@ void HTTPRequest::cache_body(HTTPResponse &response) {
   datetime.tm_sec += 1;
   store.set(_url.url(), response.body, mktime(&datetime));
 }
-HTTPResponse HTTPRequest::post(string json, bool asjson) {
+HTTPResponse HTTPRequest::post(string json, bool asjson,
+                               std::function<void(std::string)> callback) {
   m_json = json;
   m_asjson = asjson;
+  m_stream = callback != nullptr;
+  m_callback = callback;
   HTTPResponse response = HTTPResponse(*this);
   send_request(POST);
   read_headers(response);

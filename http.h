@@ -1,10 +1,13 @@
 #pragma once
 #include "URL.h"
+#include "encoding.h"
 #include "socket_client.h"
 #include "types.h"
 #include <bits/stdc++.h>
+#include <functional>
 #include <json/json.h>
 #include <memory>
+#include <string>
 enum METHOD { GET = 0, POST = 1, HEAD = 2 };
 class HTTPResponse;
 
@@ -26,6 +29,9 @@ protected:
   std::shared_ptr<SocketClient> get_client();
   std::string m_json;
   bool m_asjson;
+  bool m_stream = false;
+
+  std::function<void(std::string)> m_callback;
 
 public:
   static std::map<std::string, std::shared_ptr<SocketClient>> pool;
@@ -36,7 +42,8 @@ public:
   void add_headers(HEADERS h) { _headers.insert(h.begin(), h.end()); }
 
   HTTPResponse get(int redirect_times = 0);
-  HTTPResponse post(std::string json = "", bool asjson = true);
+  HTTPResponse post(std::string json = "", bool asjson = true,
+                    std::function<void(std::string)> = nullptr);
   HTTPResponse head(int redirect_times = 0);
 
 protected:
@@ -45,6 +52,8 @@ protected:
   void read_body(HTTPResponse &);
   void send_request(METHOD);
   void handle_chunks(HTTPResponse &);
+  void handle_stream(HTTPResponse &, std::string &);
+  std::string decompress(HTTPResponse &, std::string &, Decoder &);
   void cache_body(HTTPResponse &);
 };
 

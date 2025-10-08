@@ -4,6 +4,14 @@
 #include <cstring>
 #include <iostream>
 #include <sstream>
+
+#define METHOD_OPT "-x"
+#define HELP_OPT "-h"
+#define HEADER_OPT "-H"
+#define SHOW_HEADER_OPT "-i"
+#define PARSE_OPT "-p"
+#define DATA_OPT "-d"
+#define LOG_LEVEL_OPT "-l"
 using namespace std;
 
 struct OPTIONS {
@@ -16,13 +24,14 @@ struct OPTIONS {
 
 int usage(const char *executable) {
   cout << "Usage: " << executable << " [OPTIONS..] <URL>\n";
-  cout << "-x METHOD (GET,POST,HEAD) default is GET \n";
-  cout << "-h Shows Usage\n";
-  cout << "-H ADD HEADERS\n";
-  cout << "-d ADD DATA\n";
-  cout << "-p Parse HTML\n";
-  cout << "-sh Show Headers\n";
-  cout << "-l LOG LEVEL (ALL, DEBUG, INFO, WARN, ERROR) default is none\n";
+  cout << METHOD_OPT " METHOD (GET,POST,HEAD) default is GET \n";
+  cout << HELP_OPT " Shows Usage\n";
+  cout << HEADER_OPT " ADD HEADERS\n";
+  cout << DATA_OPT " ADD DATA\n";
+  cout << PARSE_OPT " Parse HTML\n";
+  cout << SHOW_HEADER_OPT " Show Headers\n";
+  cout << LOG_LEVEL_OPT
+      " LOG LEVEL (ALL, DEBUG, INFO, WARN, ERROR) default is none\n";
   return 0;
 }
 string url;
@@ -32,7 +41,7 @@ bool parse_args(int argc, char **argv) {
   if (argc < 2)
     return usage(argv[0]);
   for (int i = 1; i < argc; i++) {
-    if (strncmp(argv[i], "-x", 2) == 0) {
+    if (strncmp(argv[i], METHOD_OPT, 2) == 0) {
       if (i + 1 >= argc) {
         cerr << "Expected value after " << argv[i - 1] << "\n";
         return false;
@@ -47,7 +56,7 @@ bool parse_args(int argc, char **argv) {
       else
         cout << "Invalid method: " << argv[i] << " using GET\n";
 
-    } else if (strncmp(argv[i], "-d", 2) == 0) {
+    } else if (strncmp(argv[i], DATA_OPT, 2) == 0) {
       if (i + 1 >= argc) {
         cerr << "Expected value after " << argv[i - 1] << "\n";
         return false;
@@ -56,7 +65,7 @@ bool parse_args(int argc, char **argv) {
       i++;
       std::string data(argv[i]);
       OPTIONS.data = data;
-    } else if (strncmp(argv[i], "-H", 2) == 0) {
+    } else if (strncmp(argv[i], HEADER_OPT, 2) == 0) {
       if (i + 1 >= argc) {
         cerr << "Expected value after " << argv[i - 1] << "\n";
         return false;
@@ -68,13 +77,13 @@ bool parse_args(int argc, char **argv) {
       std::getline(ss, key, ':');
       std::getline(ss, val, ':');
       OPTIONS.headers[key] = val;
-    } else if (strncmp(argv[i], "-sh", 3) == 0) {
+    } else if (strncmp(argv[i], SHOW_HEADER_OPT, 2) == 0) {
       OPTIONS.show_headers = true;
-    } else if (strncmp(argv[i], "-p", 2) == 0) {
+    } else if (strncmp(argv[i], PARSE_OPT, 2) == 0) {
       OPTIONS.parse = true;
-    } else if (strncmp(argv[i], "-h", 2) == 0) {
+    } else if (strncmp(argv[i], HELP_OPT, 2) == 0) {
       return usage(argv[0]);
-    } else if (strncmp(argv[i], "-l", 2) == 0) {
+    } else if (strncmp(argv[i], LOG_LEVEL_OPT, 2) == 0) {
       if (i + 1 >= argc) {
         cerr << "Expected value after " << argv[i - 1] << "\n";
         return false;

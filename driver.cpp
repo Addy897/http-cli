@@ -3,6 +3,7 @@
 #include "http.h"
 #include "logger.h"
 #include "types.h"
+#include <iostream>
 #include <stdexcept>
 HTTPResponse Driver::get(std::string _url, HEADERS headers) {
   URL url(_url);
