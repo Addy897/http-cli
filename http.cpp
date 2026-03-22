@@ -12,7 +12,6 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <winsock2.h>
 std::map<std::string, std::shared_ptr<SocketClient>> HTTPRequest::pool;
 string HTTPRequest::build_request(METHOD method) {
   string m;

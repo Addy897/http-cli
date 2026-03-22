@@ -1,12 +1,12 @@
 #include "socket_client.h"
 #include <stdexcept>
-#include <winsock2.h>
 
 SocketClient::SocketClient() {
   // default values for socket
   client = INVALID_SOCKET;
   client_addr = {0};
 
+#ifdef _WIN32
   // init wsa
   WORD version = MAKEWORD(2, 2);
   int ret = WSAStartup(version, &wsdata);
@@ -16,6 +16,12 @@ SocketClient::SocketClient() {
     sprintf_s(error, "WSA initialization failed: %d.", ret);
     throw std::runtime_error(error);
   }
+#endif
 }
 
-SocketClient::~SocketClient() { WSACleanup(); }
+SocketClient::~SocketClient() { 
+#ifdef _WIN32
+WSACleanup();
+#endif 
+
+}

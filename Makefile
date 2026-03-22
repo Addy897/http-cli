@@ -1,8 +1,15 @@
 
 
 CC=g++
-CFLAGS= -Wall -std=c++20
-LDFLAGS= -lws2_32 -lssl -lcrypto -lz -ljsoncpp
+CFLAGS= -Wall -std=c++20 -Iincludes/
+ifeq ($(OS),Windows_NT)
+    LDFLAGS = -lws2_32 -lssl -lcrypto -lz -ljsoncpp
+    EXEC_EXT = .exe
+else
+    LDFLAGS =  -lssl -lcrypto -lz -ljsoncpp
+    EXEC_EXT =
+endif
+
 EXECUTABLE=main
 FILES= $(wildcard *.cpp)
 EXCLUDED_ITEM = main.cpp driver.cpp file_reader.cpp
@@ -17,12 +24,12 @@ build/%.o: %.cpp
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run: $(EXECUTABLE)
-	./$(EXECUTABLE).exe https://example.com
+	./$(EXECUTABLE)$(EXEC_EXT) https://example.com
 
 $(EXECUTABLE): $(FILES)
 	$(CC) $^ $(CFLAGS) $(DFLAGS) -o $@ $(LDFLAGS)
 
 clean:
-	if [ -e $(EXECUTABLE).exe ]; then rm.exe $(EXECUTABLE).exe; fi
+	if [ -e $(EXECUTABLE)$(EXEC_EXT) ]; then rm $(EXECUTABLE)$(EXEC_EXT); fi
 
 

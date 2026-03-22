@@ -3,9 +3,7 @@
 #include "socket_client.h"
 #include <openssl/err.h>
 #include <openssl/ssl.h>
-#include <psdk_inc/_socket_types.h>
 #include <stdexcept>
-#include <winsock2.h>
 
 // HTTP CLIENT
 
@@ -76,7 +74,7 @@ std::string HTTPClient::read(size_t size) {
 
 void HTTPClient::close() {
   if (client != INVALID_SOCKET) {
-    closesocket(client);
+    ::closesocket(client);
     client = INVALID_SOCKET;
   }
 }
@@ -116,6 +114,7 @@ void HTTPSClient::conn(std::string hostname, int port) {
     throw std::runtime_error("Unable to create SSL Client.");
   }
   SSL_set_fd(ssl_client, client);
+  SSL_set_tlsext_host_name(ssl_client, hostname.c_str());
   if (SSL_connect(ssl_client) != 1) {
     LOGGER::log_error("conn()", "Unable to connect SSL client: %s",
                       ossl_err_as_string());
