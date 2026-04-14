@@ -103,7 +103,14 @@ bool parse_args(int argc, char **argv) {
         LOGGER::LOG_LEVEL = NONE;
       }
     } else {
+#ifdef DEMO
+        if(strncmp(argv[i],"https://example.com/",20)!=0){
+            cout << "Running in demo env only request to example.com is allowed\n";
+        }
+        url = "https://example.com/";
+#else
       url = argv[i];
+#endif
     }
   }
   if (url.empty())
